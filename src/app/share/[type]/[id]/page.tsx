@@ -2,7 +2,7 @@ import { Metadata } from "next";
 
 export const dynamicParams = true;
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://city-guardian-2.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://city-guardian-2-affg.vercel.app";
 
 type PageParams = Promise<{ type: string; id: string }>;
 

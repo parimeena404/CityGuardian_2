@@ -1,5 +1,10 @@
 # ○ △ □ CITY GUARDIAN — CIVIC SURVIVAL PLATFORM
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel%20Deployment-39ff88?style=for-the-badge&logo=vercel)](https://city-guardian-2-affg.vercel.app/)
+[![GitHub Repository](https://img.shields.io/badge/GitHub-CityGuardian__2-ff2e6d?style=for-the-badge&logo=github)](https://github.com/parimeena404/CityGuardian_2.git)
+
+> 🌐 **Live Production URL**: [https://city-guardian-2-affg.vercel.app/](https://city-guardian-2-affg.vercel.app/)
+
 > **"Gamified civic survival where measured environmental outcomes drive real municipal accountability."**
 
 City Guardian turns urban sustainability into an arena of high-stakes citizen engagement and authority oversight. Inspired by the Squid Game aesthetic, the platform splits into two synchronized operational modes: **PLAYER MODE** for citizen action and rewards, and **FRONT MAN MODE** for department scoring and digital ward clocks.

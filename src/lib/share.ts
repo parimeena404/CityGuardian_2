@@ -3,7 +3,7 @@
  * LinkedIn share-intent (no OAuth) + Web Share API + clipboard fallback
  */
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://city-guardian-2.vercel.app";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://city-guardian-2-affg.vercel.app";
 
 export type ShareableType = "badge" | "challenge" | "civic-ticket" | "food-rescue" | "waste-report";
 
