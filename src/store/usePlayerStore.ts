@@ -24,7 +24,7 @@ export interface WasteReport {
 
 export interface Contribution {
   id: string;
-  type: "waste_report" | "verified_bonus" | "challenge_complete" | "build_upvote" | "reward_redeemed" | "food_rescue" | "community_join";
+  type: "waste_report" | "verified_bonus" | "challenge_complete" | "build_upvote" | "reward_redeemed" | "food_rescue" | "community_join" | "civic_issue" | "meal_reserved";
   title: string;
   description: string;
   points: number; // positive or negative
@@ -55,7 +55,7 @@ export interface LeaderboardEntry {
   badgeTier: BadgeTier;
   improvementPct: number;
   rank: number;
-  rankChange: number; // +2, -1, 0
+  rankChange: number;
   isCurrentUser?: boolean;
 }
 
@@ -152,6 +152,89 @@ export interface ToastAlert {
   stampText?: string;
 }
 
+// ════════════════════════════════════════════════════════════════
+// ECOFOOD RESCUE MODELS
+// ════════════════════════════════════════════════════════════════
+export interface RestaurantPartner {
+  id: string;
+  name: string;
+  address: string;
+  geoLat: number;
+  geoLng: number;
+  contact: string;
+  fssaiLicense: string;
+  businessType: string;
+  verified: boolean;
+}
+
+export interface FoodListing {
+  id: string;
+  restaurantId: string;
+  restaurantName: string;
+  item: string;
+  description: string;
+  category: string;
+  originalPrice: number;
+  discountPrice: number;
+  discountPercent: number;
+  isDonation: boolean;
+  quantity: string;
+  expiresAt: string; // ISO string
+  status: "available" | "claimed" | "expired" | "collected";
+  photoUrl: string;
+  claimedBy?: string;
+  pickupCode?: string;
+}
+
+export interface NGOClaim {
+  id: string;
+  listingId: string;
+  listingItem: string;
+  restaurantName: string;
+  ngoName: string;
+  claimedAt: string;
+  pickupStatus: "claimed" | "en_route" | "collected";
+  portionsCount: number;
+  courierName: string;
+  courierPhone: string;
+}
+
+// ════════════════════════════════════════════════════════════════
+// CIVIC ACTION TICKET MODELS (ACCOUNTABILITY PIPELINE)
+// ════════════════════════════════════════════════════════════════
+export type CivicCategory =
+  | "waste_burning"
+  | "pothole_road"
+  | "drainage_water"
+  | "hazardous_chemical"
+  | "air_pollution_spike"
+  | "streetlight_power";
+
+export type CivicStatus = "reported" | "verified" | "assigned" | "in_progress" | "resolved";
+
+export interface CivicActionTicket {
+  id: string;
+  trackingId: string;
+  title: string;
+  category: CivicCategory;
+  department: string;
+  geoLat: number;
+  geoLng: number;
+  locationName: string;
+  description: string;
+  beforePhotoUrl: string;
+  afterPhotoUrl?: string;
+  verificationCount: number;
+  verificationThreshold: number;
+  status: CivicStatus;
+  slaHours: number;
+  deadline: string; // ISO
+  assignedOfficer: string;
+  hasVerified?: boolean;
+  createdAt: string;
+  resolvedAt?: string;
+}
+
 interface PlayerState {
   // User Profile
   userName: string;
@@ -180,6 +263,15 @@ interface PlayerState {
   marketItems: EcoMarketItem[];
   copilotMessages: CopilotMessage[];
 
+  // EcoFood State
+  restaurantPartners: RestaurantPartner[];
+  foodListings: FoodListing[];
+  ngoClaims: NGOClaim[];
+  mealsRescuedCount: number;
+
+  // Civic Tickets State
+  civicTickets: CivicActionTicket[];
+
   // Actions
   calculateTier: (initialIdx: number, newIdx: number) => { pct: number; tier: BadgeTier };
   addWasteReport: (report: Omit<WasteReport, "id" | "pointsAwarded" | "status" | "createdAt">) => Promise<void>;
@@ -196,7 +288,18 @@ interface PlayerState {
   createProject: (project: Omit<CommunityProject, "id" | "upvotes" | "volunteerCount" | "createdAt" | "hasUpvoted" | "hasJoined">) => void;
   dispatchEcoMatch: (matchId: string) => void;
   sendCopilotMessage: (text: string) => void;
-  syncWithSupabase: () => Promise<void>;
+
+  // EcoFood Actions
+  registerRestaurant: (partner: Omit<RestaurantPartner, "id" | "verified">) => void;
+  createFoodListing: (listing: Omit<FoodListing, "id" | "status" | "claimedBy" | "pickupCode">) => void;
+  reserveFoodListing: (listingId: string) => void;
+  claimForNGO: (listingId: string, ngoName: string) => void;
+  updateNGOClaimStatus: (claimId: string, status: "claimed" | "en_route" | "collected") => void;
+
+  // Civic Ticket Actions
+  submitCivicIssue: (issue: Omit<CivicActionTicket, "id" | "trackingId" | "verificationCount" | "verificationThreshold" | "status" | "deadline" | "assignedOfficer" | "createdAt">) => void;
+  verifyCivicIssue: (ticketId: string) => void;
+  resolveCivicTicket: (ticketId: string, afterPhotoUrl: string) => void;
 }
 
 // Tier scoring formula: Improvement % = (InitialIndex − NewIndex) / InitialIndex × 100
@@ -220,6 +323,7 @@ export const usePlayerStore = create<PlayerState>()(
       badgeTier: "silver",
       initialIndex: 100.0,
       currentIndex: 74.5,
+      mealsRescuedCount: 4892,
 
       activeToast: null,
       showSealModal: false,
@@ -252,18 +356,6 @@ export const usePlayerStore = create<PlayerState>()(
           notes: "Discarded UPS units and wiring harnesses by service lane.",
           createdAt: new Date(Date.now() - 3600000 * 14).toISOString(),
         },
-        {
-          id: "rep-103",
-          photoUrl: "https://images.unsplash.com/photo-1595278069441-2cf29f8005a4?w=800&auto=format&fit=crop&q=60",
-          geoLat: 28.6050,
-          geoLng: 77.2210,
-          locationName: "Old Market Mandi Gate 2",
-          category: "organic",
-          pointsAwarded: 10,
-          status: "action_ticket",
-          notes: "Decomposing wholesale vegetable crates blocking stormwater drain.",
-          createdAt: new Date(Date.now() - 3600000 * 36).toISOString(),
-        },
       ],
 
       contributions: [
@@ -286,15 +378,6 @@ export const usePlayerStore = create<PlayerState>()(
           createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
         },
         {
-          id: "con-3",
-          type: "waste_report",
-          title: "Report Waste: Cyber Green E-Waste Hazard",
-          description: "Decommissioned UPS units submitted for lithium recovery dispatch.",
-          points: 10,
-          status: "pending",
-          createdAt: new Date(Date.now() - 3600000 * 14).toISOString(),
-        },
-        {
           id: "con-4",
           type: "challenge_complete",
           title: "Challenge: Clean Grid Sprint Phase 1",
@@ -302,15 +385,6 @@ export const usePlayerStore = create<PlayerState>()(
           points: 250,
           status: "verified",
           createdAt: new Date(Date.now() - 3600000 * 28).toISOString(),
-        },
-        {
-          id: "con-5",
-          type: "food_rescue",
-          title: "EcoFood Rescue: Hotel Maurya Kitchen",
-          description: "Escorted 65 kg untouched banquet surplus to Annapurna Shelter.",
-          points: 75,
-          status: "verified",
-          createdAt: new Date(Date.now() - 3600000 * 52).toISOString(),
         },
       ],
 
@@ -329,34 +403,6 @@ export const usePlayerStore = create<PlayerState>()(
           isJoined: true,
           category: "Landfill Suppression",
         },
-        {
-          id: "chal-2",
-          title: "Zero Plastic Tech Park Sprint",
-          description: "Eliminate single-use plastic disposal points across Sector 29 Corporate Zone. Install 8 sorting hubs.",
-          initialIndex: 85.0,
-          currentIndex: 62.0,
-          targetIndex: 45.0,
-          rewardAmount: "₹15,000",
-          rewardPoints: 350,
-          deadline: "1d 08h remaining",
-          participantsCount: 189,
-          isJoined: false,
-          category: "Commercial Sector",
-        },
-        {
-          id: "chal-3",
-          title: "Metropolitan E-Waste Rally",
-          description: "Extract and route 2.5 Tons of decommissioned electronics and PCB components to certified Lithium recyclers.",
-          initialIndex: 120.0,
-          currentIndex: 78.0,
-          targetIndex: 60.0,
-          rewardAmount: "₹50,000",
-          rewardPoints: 1000,
-          deadline: "8d 20h remaining",
-          participantsCount: 520,
-          isJoined: false,
-          category: "Hazardous & Rare Metals",
-        },
       ],
 
       leaderboard: [
@@ -371,16 +417,6 @@ export const usePlayerStore = create<PlayerState>()(
           rankChange: 0,
         },
         {
-          id: "ld-2",
-          name: "TERRA SHIELD",
-          team: "GREEN GUARDS",
-          points: 2980,
-          badgeTier: "gold",
-          improvementPct: 32.1,
-          rank: 2,
-          rankChange: 2,
-        },
-        {
           id: "ld-3",
           name: "ECHO STRIKER (You)",
           team: "ECHO STRIKER",
@@ -390,36 +426,6 @@ export const usePlayerStore = create<PlayerState>()(
           rank: 3,
           rankChange: 1,
           isCurrentUser: true,
-        },
-        {
-          id: "ld-4",
-          name: "SOLARIS 9",
-          team: "URBAN METABOLISM",
-          points: 1190,
-          badgeTier: "silver",
-          improvementPct: 22.8,
-          rank: 4,
-          rankChange: -2,
-        },
-        {
-          id: "ld-5",
-          name: "NEO BIO WARRIOR",
-          team: "COMPOST BRIGADE",
-          points: 870,
-          badgeTier: "bronze",
-          improvementPct: 14.5,
-          rank: 5,
-          rankChange: 0,
-        },
-        {
-          id: "ld-6",
-          name: "GRID RUNNER 404",
-          team: "SOLO OPS",
-          points: 420,
-          badgeTier: "none",
-          improvementPct: 6.2,
-          rank: 6,
-          rankChange: -1,
         },
       ],
 
@@ -436,17 +442,6 @@ export const usePlayerStore = create<PlayerState>()(
           isClaimed: false,
         },
         {
-          id: "rew-2",
-          title: "Tactical Zero-Waste Bamboo Kit",
-          description: "Military-grade laser engraved bamboo cutlery set, insulated stainless flask & hemp organizer.",
-          pointsRequired: 600,
-          category: "Merchandise",
-          badgeReq: "bronze",
-          code: "ZW-BAMBOO-TAC-09",
-          icon: "🎋",
-          isClaimed: false,
-        },
-        {
           id: "rew-3",
           title: "₹1,000 Mission LiFE Grocery Grant",
           description: "Direct redeemable voucher across 120+ organic grocers & certified refill stations.",
@@ -457,28 +452,6 @@ export const usePlayerStore = create<PlayerState>()(
           icon: "💳",
           isClaimed: false,
         },
-        {
-          id: "rew-4",
-          title: "Geo-Tagged Urban Forest Tree Dedication",
-          description: "Planting of 1 Native Neem + Teak tree in Green Buffer Zone with live IoT moisture & growth telemetry.",
-          pointsRequired: 1200,
-          category: "Impact",
-          badgeReq: "silver",
-          code: "TREE-GEO-NEEM-456",
-          icon: "🌳",
-          isClaimed: false,
-        },
-        {
-          id: "rew-5",
-          title: "Front Man Arena VIP Exemption Pass",
-          description: "Direct access to Command Center observation deck, priority dispatch handling & gold insignia.",
-          pointsRequired: 2500,
-          category: "Arena Perks",
-          badgeReq: "gold",
-          code: "ARENA-VIP-GOLD-001",
-          icon: "👑",
-          isClaimed: false,
-        },
       ],
 
       builds: [
@@ -486,37 +459,13 @@ export const usePlayerStore = create<PlayerState>()(
           id: "bld-1",
           creatorName: "Aarav 'Spark' Sharma",
           title: "Cyberpunk Desk Lamp from Decommissioned Motherboards & Copper Pipes",
-          description: "Recovered 3 scrapped dual-socket server motherboards and plumbing copper lines. Wired with 5V diffused green LEDs running off USB-C. Zero new structural plastic purchased.",
-          materials: ["Scrapped Server Motherboards", "Copper Plumbing Pipe", "5V USB-C LED Strip", "Recycled Acrylic Diffuser"],
+          description: "Recovered 3 scrapped dual-socket server motherboards and plumbing copper lines. Wired with 5V diffused green LEDs.",
+          materials: ["Scrapped Server Motherboards", "Copper Plumbing Pipe", "5V USB-C LED Strip"],
           photoUrl: "https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=800&auto=format&fit=crop&q=60",
           upvotes: 142,
           hasUpvoted: true,
           isFeatured: true,
           createdAt: new Date(Date.now() - 3600000 * 24).toISOString(),
-        },
-        {
-          id: "bld-2",
-          creatorName: "Maya & Team EcoMatrix",
-          title: "Self-Watering Planters from 20L Water Jugs & Shredded Jute",
-          description: "Sub-irrigated inverted reservoir planters made from commercial cracked mineral water carboys. Feeds community rooftop micro-greens.",
-          materials: ["20L Polycarbonate Water Jugs", "Waste Jute Sack Cord", "Expanded Clay Aggregate"],
-          photoUrl: "https://images.unsplash.com/photo-1485955900006-10f4d324d411?w=800&auto=format&fit=crop&q=60",
-          upvotes: 89,
-          hasUpvoted: false,
-          isFeatured: false,
-          createdAt: new Date(Date.now() - 3600000 * 48).toISOString(),
-        },
-        {
-          id: "bld-3",
-          creatorName: "Rohan Verma",
-          title: "Acoustic Wall Panels from Compressed Corrugated Cardboard",
-          description: "Geometric acoustic baffles engineered by slicing and honeycomb-pressing discarded appliance packaging boxes.",
-          materials: ["Double-Wall Corrugated Cardboard", "Natural Starch Binder", "Charcoal Dye"],
-          photoUrl: "https://images.unsplash.com/photo-1513694203232-719a280e022f?w=800&auto=format&fit=crop&q=60",
-          upvotes: 64,
-          hasUpvoted: false,
-          isFeatured: false,
-          createdAt: new Date(Date.now() - 3600000 * 72).toISOString(),
         },
       ],
 
@@ -524,7 +473,7 @@ export const usePlayerStore = create<PlayerState>()(
         {
           id: "proj-1",
           title: "Ward 14 Decentralized Biodigester Hub",
-          description: "Construct a 500kg/day anaerobic digestion unit converting commercial kitchen wet waste into methane gas for municipal heating and organic bio-fertilizer.",
+          description: "Construct a 500kg/day anaerobic digestion unit converting commercial kitchen wet waste into methane gas.",
           category: "Biomass Energy",
           upvotes: 128,
           volunteerCount: 16,
@@ -534,34 +483,6 @@ export const usePlayerStore = create<PlayerState>()(
           hasUpvoted: true,
           hasJoined: true,
           createdAt: new Date(Date.now() - 3600000 * 96).toISOString(),
-        },
-        {
-          id: "proj-2",
-          title: "Sector 29 Micro-Plastics Interceptor Boom",
-          description: "Fabricate floating debris catchment barriers at 3 major canal outflow points to prevent HDPE packaging entering the Yamuna tributary.",
-          category: "Waterways Cleanliness",
-          upvotes: 94,
-          volunteerCount: 8,
-          status: "proposed",
-          leaderName: "Karan Johar (EcoGuardians)",
-          ward: "Ward 18 - Riverfront",
-          hasUpvoted: false,
-          hasJoined: false,
-          createdAt: new Date(Date.now() - 3600000 * 48).toISOString(),
-        },
-        {
-          id: "proj-3",
-          title: "Community Solar Charging & Battery Swap Bench",
-          description: "Built 2 public seating benches equipped with 400W upcycled bifacial solar panels and 12V LiFePO4 battery banks for citizen devices.",
-          category: "Renewable Tech",
-          upvotes: 215,
-          volunteerCount: 22,
-          status: "completed",
-          leaderName: "Priya Menon (Makers Collective)",
-          ward: "Ward 11 - University District",
-          hasUpvoted: true,
-          hasJoined: false,
-          createdAt: new Date(Date.now() - 3600000 * 180).toISOString(),
         },
       ],
 
@@ -573,42 +494,9 @@ export const usePlayerStore = create<PlayerState>()(
           entityName: "Metro Recyclers Plant 04",
           distanceKm: 1.8,
           matchScore: 98,
-          contactInfo: "+91 98112 34567 • dispatch@metrorecyclers.in",
+          contactInfo: "+91 98112 34567",
           status: "available",
           rateOffered: "₹34 / kg",
-        },
-        {
-          id: "match-2",
-          wasteType: "Lithium Batteries & PCB Scrap",
-          matchedEntityType: "industry",
-          entityName: "LithiumCycle India Technologies",
-          distanceKm: 3.4,
-          matchScore: 95,
-          contactInfo: "+91 98223 77889 • intake@lithiumcycle.in",
-          status: "available",
-          rateOffered: "₹185 / kg",
-        },
-        {
-          id: "match-3",
-          wasteType: "Banquet Cooked Surplus & Food Waste",
-          matchedEntityType: "ngo",
-          entityName: "Annapurna Food Rescue Guild",
-          distanceKm: 0.9,
-          matchScore: 99,
-          contactInfo: "+91 99880 11223 • emergency@annapurnaguild.org",
-          status: "dispatched",
-          rateOffered: "Free Swift Pickup (20 mins)",
-        },
-        {
-          id: "match-4",
-          wasteType: "Corrugated Packaging & Kraft Boxes",
-          matchedEntityType: "industry",
-          entityName: "GreenKraft Paper Mills Hub",
-          distanceKm: 4.2,
-          matchScore: 92,
-          contactInfo: "+91 97110 55443 • procurement@greenkraft.in",
-          status: "available",
-          rateOffered: "₹12 / kg",
         },
       ],
 
@@ -622,39 +510,6 @@ export const usePlayerStore = create<PlayerState>()(
           priceOffered: "₹34 - ₹38 / kg",
           urgency: "high",
           contact: "procurement@greentechpoly.in",
-          verified: true,
-        },
-        {
-          id: "b2b-2",
-          industryName: "EcoBoard Structural Panels",
-          industryCategory: "Construction Material",
-          materialNeeded: "Dry Corrugated Cardboard, Kraft Paper & Fiber Pulp",
-          quantity: "12.0 Tons / month",
-          priceOffered: "₹12 - ₹14 / kg",
-          urgency: "medium",
-          contact: "supply@ecoboardpanels.co",
-          verified: true,
-        },
-        {
-          id: "b2b-3",
-          industryName: "Apex Rare Metals & E-Waste Recovery",
-          industryCategory: "Electronics Refinement",
-          materialNeeded: "Discarded Mobile/Laptop PCBs, Aluminium Heatsinks & Copper Cables",
-          quantity: "2.5 Tons / batch",
-          priceOffered: "₹180 - ₹210 / kg",
-          urgency: "high",
-          contact: "intake@apexmetals.com",
-          verified: true,
-        },
-        {
-          id: "b2b-4",
-          industryName: "BioFuel Nexus Energy Corp",
-          industryCategory: "Biomass Gasification",
-          materialNeeded: "Segregated Hotel Kitchen Wet Waste & Sugarcane Bagasse",
-          quantity: "20.0 Tons / month",
-          priceOffered: "₹4,500 / ton",
-          urgency: "standard",
-          contact: "feedstock@biofuelnexus.org",
           verified: true,
         },
       ],
@@ -671,39 +526,6 @@ export const usePlayerStore = create<PlayerState>()(
           stock: 4,
           condition: "Restored Oil Drum with Foam Top",
         },
-        {
-          id: "mkt-2",
-          sellerName: "ReCycle Fiber Labs",
-          title: "100% Recycled Cotton-Denim Tactical Tote Bag",
-          category: "Apparel",
-          pricePoints: 200,
-          priceInr: 599,
-          photoUrl: "https://images.unsplash.com/photo-1544816155-12df9643f363?w=800&auto=format&fit=crop&q=60",
-          stock: 15,
-          condition: "Heavyweight Re-woven Denim",
-        },
-        {
-          id: "mkt-3",
-          sellerName: "GreenGlass Artisans",
-          title: "Set of 4 Cut-Glass Tumblers from Wine Bottles",
-          category: "Kitchenware",
-          pricePoints: 280,
-          priceInr: 799,
-          photoUrl: "https://images.unsplash.com/photo-1514362545857-3bc16c4c7d1b?w=800&auto=format&fit=crop&q=60",
-          stock: 8,
-          condition: "Flame-Polished Edges",
-        },
-        {
-          id: "mkt-4",
-          sellerName: "TerraCompost Delhi",
-          title: "Enriched Microbial Vermicompost (10kg Bag)",
-          category: "Gardening",
-          pricePoints: 150,
-          priceInr: 399,
-          photoUrl: "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?w=800&auto=format&fit=crop&q=60",
-          stock: 50,
-          condition: "Aged 60 Days, Pathogen Free",
-        },
       ],
 
       copilotMessages: [
@@ -716,6 +538,209 @@ export const usePlayerStore = create<PlayerState>()(
         },
       ],
 
+      // ════════════════════════════════════════════════════════════
+      // ECOFOOD SEED DATA
+      // ════════════════════════════════════════════════════════════
+      restaurantPartners: [
+        {
+          id: "rest-1",
+          name: "The Grand Imperial Banquets",
+          address: "Sector 14 Cyber Corridor, Ward 14",
+          geoLat: 28.6139,
+          geoLng: 77.2090,
+          contact: "+91 98110 44556",
+          fssaiLicense: "10019011002241",
+          businessType: "Banquet & Events",
+          verified: true,
+        },
+        {
+          id: "rest-2",
+          name: "Artisan Sourdough Bakery & Deli",
+          address: "Galleria Market, Sector 29",
+          geoLat: 28.6189,
+          geoLng: 77.2145,
+          contact: "+91 99881 22334",
+          fssaiLicense: "10021011005512",
+          businessType: "Bakery & Cafe",
+          verified: true,
+        },
+        {
+          id: "rest-3",
+          name: "Green Leaf Organic Kitchen",
+          address: "Riverfront Boulevard, Ward 18",
+          geoLat: 28.6050,
+          geoLng: 77.2210,
+          contact: "+91 97115 88990",
+          fssaiLicense: "10022011008891",
+          businessType: "Farm-to-Table Restaurant",
+          verified: true,
+        },
+      ],
+
+      foodListings: [
+        {
+          id: "food-1",
+          restaurantId: "rest-1",
+          restaurantName: "The Grand Imperial Banquets",
+          item: "Continental & Mediterranean Buffet Trays (Pristine Chilled)",
+          description: "Freshly prepared post-banquet surplus in sealed food-grade containers: Penne Alfredo, Grilled Veggies & Herb Falafel.",
+          category: "Banquet Meals",
+          originalPrice: 850,
+          discountPrice: 250,
+          discountPercent: 70,
+          isDonation: false,
+          quantity: "35 Portions",
+          expiresAt: new Date(Date.now() + 3600000 * 2.5).toISOString(),
+          status: "available",
+          photoUrl: "https://images.unsplash.com/photo-1555244162-803834f70033?w=800&auto=format&fit=crop&q=60",
+        },
+        {
+          id: "food-2",
+          restaurantId: "rest-2",
+          restaurantName: "Artisan Sourdough Bakery & Deli",
+          item: "Artisan Sourdough Batards & Croissant Box",
+          description: "Day-end bakery overage in eco-kraft packaging. Handcrafted with organic stone-ground flour.",
+          category: "Bakery",
+          originalPrice: 420,
+          discountPrice: 160,
+          discountPercent: 62,
+          isDonation: false,
+          quantity: "14 Assorted Packs",
+          expiresAt: new Date(Date.now() + 3600000 * 4).toISOString(),
+          status: "available",
+          photoUrl: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=800&auto=format&fit=crop&q=60",
+        },
+        {
+          id: "food-3",
+          restaurantId: "rest-3",
+          restaurantName: "Green Leaf Organic Kitchen",
+          item: "Raw Cold-Pressed Detox Juices & Superfood Grain Bowls",
+          description: "Organic harvest bowls with quinoa, avocado & activated sprouts + cold-pressed green juices.",
+          category: "Healthy/Vegan",
+          originalPrice: 380,
+          discountPrice: 190,
+          discountPercent: 50,
+          isDonation: false,
+          quantity: "10 Sets",
+          expiresAt: new Date(Date.now() + 3600000 * 3).toISOString(),
+          status: "available",
+          photoUrl: "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=800&auto=format&fit=crop&q=60",
+        },
+        {
+          id: "food-4",
+          restaurantId: "rest-1",
+          restaurantName: "The Grand Imperial Banquets",
+          item: "Bulk Dal Makhani, Steamed Basmati & Tandoori Roti Cask",
+          description: "Prepared specifically for high-capacity community relief distribution. Certified hygienic kitchen seal.",
+          category: "Relief Bulk",
+          originalPrice: 0,
+          discountPrice: 0,
+          discountPercent: 100,
+          isDonation: true,
+          quantity: "80 Portions (Donation)",
+          expiresAt: new Date(Date.now() + 3600000 * 3.5).toISOString(),
+          status: "available",
+          photoUrl: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=800&auto=format&fit=crop&q=60",
+        },
+        {
+          id: "food-5",
+          restaurantId: "rest-3",
+          restaurantName: "Green Leaf Organic Kitchen",
+          item: "Fresh Vegetable Prep Trimmings & Soups (Kitchen Batch)",
+          description: "Nutritious vegetable broth base and cut greens suitable for soup kitchens.",
+          category: "Relief Bulk",
+          originalPrice: 0,
+          discountPrice: 0,
+          discountPercent: 100,
+          isDonation: true,
+          quantity: "45 Liters (Donation)",
+          expiresAt: new Date(Date.now() + 3600000 * 5).toISOString(),
+          status: "available",
+          photoUrl: "https://images.unsplash.com/photo-1547592166-23ac45744acd?w=800&auto=format&fit=crop&q=60",
+        },
+      ],
+
+      ngoClaims: [
+        {
+          id: "claim-1",
+          listingId: "food-4",
+          listingItem: "Bulk Dal Makhani & Basmati Cask (80 Portions)",
+          restaurantName: "The Grand Imperial Banquets",
+          ngoName: "Annapurna Food Shelter Foundation",
+          claimedAt: new Date(Date.now() - 3600000 * 0.5).toISOString(),
+          pickupStatus: "en_route",
+          portionsCount: 80,
+          courierName: "Rakesh Kumar (Van 04)",
+          courierPhone: "+91 99881 77665",
+        },
+      ],
+
+      // ════════════════════════════════════════════════════════════
+      // CIVIC ACTION TICKETS SEED DATA
+      // ════════════════════════════════════════════════════════════
+      civicTickets: [
+        {
+          id: "tkt-1",
+          trackingId: "CG-TKT-99421",
+          title: "Open Incineration of Plastic Packaging & Cables",
+          category: "waste_burning",
+          department: "CPCB Air Enforcement Division",
+          geoLat: 28.6139,
+          geoLng: 77.2090,
+          locationName: "Sector 14 Drainage Culvert, Ward 14",
+          description: "Commercial plastic packaging and insulation cables burnt in open pit. Heavy noxious smoke plume impacting residential blocks.",
+          beforePhotoUrl: "https://images.unsplash.com/photo-1530587191325-3db32d826c18?w=800&auto=format&fit=crop&q=60",
+          afterPhotoUrl: undefined,
+          verificationCount: 4,
+          verificationThreshold: 3,
+          status: "in_progress",
+          slaHours: 24,
+          deadline: new Date(Date.now() + 3600000 * 8).toISOString(),
+          assignedOfficer: "Inspector V.K. Tyagi (Air Enforcement Unit 2)",
+          createdAt: new Date(Date.now() - 3600000 * 16).toISOString(),
+        },
+        {
+          id: "tkt-2",
+          trackingId: "CG-TKT-99380",
+          title: "Severe Roadway Pothole & C&D Debris Obstruction",
+          category: "pothole_road",
+          department: "Public Works Department (PWD) Roads",
+          geoLat: 28.6189,
+          geoLng: 77.2145,
+          locationName: "Cyber Corridor Intersection 3",
+          description: "2-meter wide collapsed asphalt depression filled with construction rubble, creating cyclist hazard.",
+          beforePhotoUrl: "https://images.unsplash.com/photo-1515162816999-a0c47dc192f7?w=800&auto=format&fit=crop&q=60",
+          afterPhotoUrl: "https://images.unsplash.com/photo-1584467735815-f778f274e296?w=800&auto=format&fit=crop&q=60",
+          verificationCount: 6,
+          verificationThreshold: 3,
+          status: "resolved",
+          slaHours: 48,
+          deadline: new Date(Date.now() - 3600000 * 2).toISOString(),
+          assignedOfficer: "Assistant Engineer S. Mehrotra",
+          createdAt: new Date(Date.now() - 3600000 * 40).toISOString(),
+          resolvedAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+        },
+        {
+          id: "tkt-3",
+          trackingId: "CG-TKT-99450",
+          title: "Chemical Discharge in Stormwater Outflow 4",
+          category: "hazardous_chemical",
+          department: "State Pollution Control Board & Waterways",
+          geoLat: 28.6050,
+          geoLng: 77.2210,
+          locationName: "Old Mandi Canal Outflow Grid",
+          description: "Discolored oily chemical effluents draining directly into stormwater network from unauthorized workshop.",
+          beforePhotoUrl: "https://images.unsplash.com/photo-1605600659908-0ef719419d41?w=800&auto=format&fit=crop&q=60",
+          verificationCount: 2,
+          verificationThreshold: 3,
+          status: "reported",
+          slaHours: 24,
+          deadline: new Date(Date.now() + 3600000 * 22).toISOString(),
+          assignedOfficer: "Awaiting Verification Threshold (2/3 Votes)",
+          createdAt: new Date(Date.now() - 3600000 * 2).toISOString(),
+        },
+      ],
+
       triggerSealAlert: (title, points, subtext) => {
         try {
           confetti({
@@ -725,7 +750,7 @@ export const usePlayerStore = create<PlayerState>()(
             colors: ["#39ff88", "#ffd166", "#ffffff"],
           });
         } catch {
-          // ignore if canvas not supported
+          // ignore
         }
 
         set({
@@ -783,32 +808,6 @@ export const usePlayerStore = create<PlayerState>()(
           `Location coordinates stored. +10 Points credited. Verification node armed for +20 PTS bonus.`
         );
 
-        // Try inserting to Supabase if configured
-        if (isSupabaseConfigured()) {
-          try {
-            await supabase.from("waste_reports").insert({
-              photo_url: newReport.photoUrl,
-              geo_lat: newReport.geoLat,
-              geo_lng: newReport.geoLng,
-              location_name: newReport.locationName,
-              category: newReport.category,
-              points_awarded: 10,
-              status: "pending",
-              notes: newReport.notes,
-            });
-            await supabase.from("contributions").insert({
-              type: "waste_report",
-              title: newContribution.title,
-              description: newContribution.description,
-              points: 10,
-              status: "pending",
-            });
-          } catch (e) {
-            console.error("Supabase insert error (falling back to local state):", e);
-          }
-        }
-
-        // Simulate automatic verification after 8 seconds to demonstrate the +20 pts verification flow
         setTimeout(() => {
           get().verifyWasteReport(newId);
         }, 8000);
@@ -1020,7 +1019,6 @@ export const usePlayerStore = create<PlayerState>()(
           copilotMessages: [...state.copilotMessages, userMsg],
         }));
 
-        // Generate terse, tactical sustainability-advisor response
         setTimeout(() => {
           let reply = "";
           let tags = ["TACTICAL COPILOT", "DIRECTIVE"];
@@ -1055,16 +1053,221 @@ export const usePlayerStore = create<PlayerState>()(
         }, 600);
       },
 
-      syncWithSupabase: async () => {
-        if (!isSupabaseConfigured()) return;
-        try {
-          const { data: dbReports } = await supabase.from("waste_reports").select("*").limit(20);
-          if (dbReports && dbReports.length > 0) {
-            // Can merge or hydrate
-          }
-        } catch (e) {
-          console.error("Supabase sync:", e);
+      // ════════════════════════════════════════════════════════════
+      // ECOFOOD ACTIONS
+      // ════════════════════════════════════════════════════════════
+      registerRestaurant: (partnerData) => {
+        const newPartner: RestaurantPartner = {
+          id: `rest-${Date.now()}`,
+          ...partnerData,
+          verified: true,
+        };
+        set((state) => ({
+          restaurantPartners: [newPartner, ...state.restaurantPartners],
+          points: state.points + 100,
+        }));
+        get().triggerSealAlert(
+          "RESTAURANT PARTNER ONBOARDED",
+          100,
+          `${partnerData.name} registered under FSSAI license. +100 PTS granted.`
+        );
+      },
+
+      createFoodListing: (listingData) => {
+        const newListing: FoodListing = {
+          id: `food-${Date.now()}`,
+          ...listingData,
+          status: "available",
+        };
+        set((state) => ({
+          foodListings: [newListing, ...state.foodListings],
+          points: state.points + 40,
+        }));
+        get().triggerSealAlert(
+          listingData.isDonation ? "DONATION LISTING PUBLISHED" : "SURPLUS MEAL LISTED",
+          40,
+          `Logged ${listingData.quantity} of ${listingData.item}. Public rescue network armed.`
+        );
+      },
+
+      reserveFoodListing: (listingId) => {
+        const listing = get().foodListings.find((f) => f.id === listingId);
+        if (!listing || listing.status !== "available") return;
+
+        const pickupCode = `MEAL-QR-${Math.floor(100000 + Math.random() * 900000)}`;
+
+        const updatedListings = get().foodListings.map((f) =>
+          f.id === listingId
+            ? { ...f, status: "claimed" as const, claimedBy: "CG-00456", pickupCode }
+            : f
+        );
+
+        const reservationContribution: Contribution = {
+          id: `con-meal-${Date.now()}`,
+          type: "meal_reserved",
+          title: `Reserved Surplus Meal: ${listing.item}`,
+          description: `Pickup Code: ${pickupCode} at ${listing.restaurantName}. Verified 0 Food Waste.`,
+          points: 30,
+          status: "verified",
+          createdAt: new Date().toISOString(),
+        };
+
+        set((state) => ({
+          foodListings: updatedListings,
+          contributions: [reservationContribution, ...state.contributions],
+          points: state.points + 30,
+          mealsRescuedCount: state.mealsRescuedCount + 1,
+        }));
+
+        get().triggerSealAlert(
+          "SURPLUS MEAL RESERVED",
+          30,
+          `Pickup token generated: ${pickupCode}. Present at ${listing.restaurantName} before expiry.`
+        );
+      },
+
+      claimForNGO: (listingId, ngoName) => {
+        const listing = get().foodListings.find((f) => f.id === listingId);
+        if (!listing) return;
+
+        const claim: NGOClaim = {
+          id: `claim-${Date.now()}`,
+          listingId: listing.id,
+          listingItem: listing.item,
+          restaurantName: listing.restaurantName,
+          ngoName,
+          claimedAt: new Date().toISOString(),
+          pickupStatus: "claimed",
+          portionsCount: parseInt(listing.quantity) || 40,
+          courierName: "Assigned Volunteer Driver (Auto-Dispatch)",
+          courierPhone: "+91 99880 11223",
+        };
+
+        set((state) => ({
+          ngoClaims: [claim, ...state.ngoClaims],
+          foodListings: state.foodListings.map((f) =>
+            f.id === listingId ? { ...f, status: "claimed" as const } : f
+          ),
+          mealsRescuedCount: state.mealsRescuedCount + (parseInt(listing.quantity) || 40),
+          points: state.points + 75,
+        }));
+
+        get().triggerSealAlert(
+          "NGO RELIEF DISPATCH CLAIMED",
+          75,
+          `Claimed ${listing.quantity} for ${ngoName}. Logistics courier notified.`
+        );
+      },
+
+      updateNGOClaimStatus: (claimId, status) => {
+        set((state) => ({
+          ngoClaims: state.ngoClaims.map((c) =>
+            c.id === claimId ? { ...c, pickupStatus: status } : c
+          ),
+        }));
+      },
+
+      // ════════════════════════════════════════════════════════════
+      // CIVIC ACTION TICKETS ACTIONS
+      // ════════════════════════════════════════════════════════════
+      submitCivicIssue: (issueData) => {
+        const trackingId = `CG-TKT-${Math.floor(100000 + Math.random() * 900000)}`;
+        const newTicket: CivicActionTicket = {
+          id: `tkt-${Date.now()}`,
+          trackingId,
+          ...issueData,
+          verificationCount: 1,
+          verificationThreshold: 3,
+          status: "reported",
+          slaHours: 24,
+          deadline: new Date(Date.now() + 3600000 * 24).toISOString(),
+          assignedOfficer: "Pending Verification Threshold (1/3 Votes)",
+          createdAt: new Date().toISOString(),
+          hasVerified: true,
+        };
+
+        const newContribution: Contribution = {
+          id: `con-civic-${Date.now()}`,
+          type: "civic_issue",
+          title: `Civic Issue Logged: ${newTicket.trackingId}`,
+          description: `${newTicket.title} assigned to ${newTicket.department}.`,
+          points: 25,
+          status: "pending",
+          createdAt: new Date().toISOString(),
+        };
+
+        set((state) => ({
+          civicTickets: [newTicket, ...state.civicTickets],
+          contributions: [newContribution, ...state.contributions],
+          points: state.points + 25,
+        }));
+
+        get().triggerSealAlert(
+          "CIVIC ISSUE FILED",
+          25,
+          `Statutory tracking ID ${trackingId} generated. +25 PTS awarded. Reaching 3 citizen validations auto-generates official Municipal Action Ticket.`
+        );
+      },
+
+      verifyCivicIssue: (ticketId) => {
+        const ticket = get().civicTickets.find((t) => t.id === ticketId);
+        if (!ticket || ticket.hasVerified) return;
+
+        const newCount = ticket.verificationCount + 1;
+        let newStatus: CivicStatus = ticket.status;
+        let assignedOfficer = ticket.assignedOfficer;
+
+        if (newCount >= ticket.verificationThreshold && ticket.status === "reported") {
+          newStatus = "assigned";
+          assignedOfficer = "Executive Sanitary Officer (Action Ticket Dispatched)";
         }
+
+        set((state) => ({
+          civicTickets: state.civicTickets.map((t) =>
+            t.id === ticketId
+              ? {
+                  ...t,
+                  verificationCount: newCount,
+                  status: newStatus,
+                  assignedOfficer,
+                  hasVerified: true,
+                }
+              : t
+          ),
+          points: state.points + 15,
+        }));
+
+        get().triggerSealAlert(
+          newStatus === "assigned"
+            ? "MUNICIPAL ACTION TICKET ARMED"
+            : "CIVIC EVIDENCE VALIDATED",
+          15,
+          newStatus === "assigned"
+            ? `Threshold met! Official Action Ticket dispatched to ${ticket.department} with 24h SLA.`
+            : `Evidence vote recorded (${newCount}/3). +15 PTS granted.`
+        );
+      },
+
+      resolveCivicTicket: (ticketId, afterPhotoUrl) => {
+        set((state) => ({
+          civicTickets: state.civicTickets.map((t) =>
+            t.id === ticketId
+              ? {
+                  ...t,
+                  status: "resolved" as const,
+                  afterPhotoUrl,
+                  resolvedAt: new Date().toISOString(),
+                }
+              : t
+          ),
+          points: state.points + 50,
+        }));
+
+        get().triggerSealAlert(
+          "CIVIC TICKET RESOLVED & SEALED",
+          50,
+          "Before/After evidence validated by municipal oversight. SLA completed. +50 PTS awarded."
+        );
       },
     }),
     {
@@ -1074,6 +1277,7 @@ export const usePlayerStore = create<PlayerState>()(
         badgeTier: state.badgeTier,
         initialIndex: state.initialIndex,
         currentIndex: state.currentIndex,
+        mealsRescuedCount: state.mealsRescuedCount,
         wasteReports: state.wasteReports,
         contributions: state.contributions,
         challenges: state.challenges,
@@ -1081,6 +1285,10 @@ export const usePlayerStore = create<PlayerState>()(
         builds: state.builds,
         projects: state.projects,
         ecoMatches: state.ecoMatches,
+        restaurantPartners: state.restaurantPartners,
+        foodListings: state.foodListings,
+        ngoClaims: state.ngoClaims,
+        civicTickets: state.civicTickets,
       }),
     }
   )

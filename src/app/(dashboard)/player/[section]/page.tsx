@@ -3,7 +3,7 @@
 import React from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { getValidSlugs } from "@/lib/navigation";
+import { getValidSlugs, playerNav } from "@/lib/navigation";
 
 // Real feature components for Player Mode
 import OverviewView from "@/components/player/OverviewView";
@@ -18,8 +18,11 @@ import CommunityProjectsView from "@/components/player/CommunityProjectsView";
 import AiMatchingMatrixView from "@/components/player/AiMatchingMatrixView";
 import IndustryDemandView from "@/components/player/IndustryDemandView";
 import EcoMarketView from "@/components/player/EcoMarketView";
-import EcoFoodRescueView from "@/components/player/EcoFoodRescueView";
+import EcoFoodMarketplaceView from "@/components/player/EcoFoodMarketplaceView";
+import RestaurantPartnerView from "@/components/player/RestaurantPartnerView";
+import NgoFoodRescueView from "@/components/player/NgoFoodRescueView";
 import GovernmentConnectView from "@/components/player/GovernmentConnectView";
+import CivicIssueTrackerView from "@/components/player/CivicIssueTrackerView";
 
 export default function PlayerSectionPage() {
   const params = useParams();
@@ -85,15 +88,15 @@ export default function PlayerSectionPage() {
     case "rewards-vault":
       return <RewardsVaultView />;
     case "ecofood-marketplace":
-      return <EcoFoodRescueView section="ecofood-marketplace" />;
+      return <EcoFoodMarketplaceView />;
     case "restaurant-partner":
-      return <EcoFoodRescueView section="restaurant-partner" />;
+      return <RestaurantPartnerView />;
     case "ngo-food-rescue":
-      return <EcoFoodRescueView section="ngo-food-rescue" />;
+      return <NgoFoodRescueView />;
     case "government-connect":
-      return <GovernmentConnectView section="government-connect" />;
+      return <GovernmentConnectView />;
     case "civic-issue-tracker":
-      return <GovernmentConnectView section="civic-issue-tracker" />;
+      return <CivicIssueTrackerView />;
     default:
       return <OverviewView />;
   }
