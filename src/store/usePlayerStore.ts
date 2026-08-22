@@ -1019,38 +1019,79 @@ export const usePlayerStore = create<PlayerState>()(
           copilotMessages: [...state.copilotMessages, userMsg],
         }));
 
-        setTimeout(() => {
-          let reply = "";
-          let tags = ["TACTICAL COPILOT", "DIRECTIVE"];
-          const lower = text.toLowerCase();
+        // Show "thinking" indicator
+        const thinkingMsg: CopilotMessage = {
+          id: `msg-thinking-${Date.now()}`,
+          sender: "copilot",
+          text: "◉ PROCESSING DIRECTIVE... Querying AI Advisory Engine...",
+          timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          tags: ["AI PROCESSING"],
+        };
+        set((state) => ({
+          copilotMessages: [...state.copilotMessages, thinkingMsg],
+        }));
 
-          if (lower.includes("density") || lower.includes("waste")) {
-            reply = "ANALYSIS COMPLETE: Sector 14 shows high PET accumulation index (74.2). Recommend deploying 2 citizen units with QR geo-taggers to Plaza B drain grid. Expected yield: +30 Points.";
-            tags = ["HOTSPOT: WARD 14", "ACTION: DISPATCH"];
-          } else if (lower.includes("e-waste") || lower.includes("upcycl")) {
-            reply = "ROUTING DIRECTIVE: E-Waste PCBs contain gold/lithium substrates. Matched with 'LithiumCycle India' (3.4km). Rate: ₹185/kg. Do not incinerate. Deploy to Circular Matrix.";
-            tags = ["MATCH: HIGH VALUE", "SECTOR: E-WASTE"];
-          } else if (lower.includes("reward") || lower.includes("tier") || lower.includes("points")) {
-            const currentPoints = get().points;
-            const tier = get().badgeTier;
-            reply = `CURRENT STATUS: ${currentPoints} PTS. Tier: ${tier.toUpperCase()}. You are 260 PTS away from ₹1,000 LiFE Voucher. Log 3 verified waste hotspots or complete 'Ward 14 Clean Grid' sprint to cross threshold.`;
-            tags = ["STATUS AUDIT", `TIER: ${tier.toUpperCase()}`];
-          } else {
-            reply = `TACTICAL ASSESSMENT: Directive received. '${text}' processed through LiFE municipal sustainability engine. Recommendation: Maintain waste segregation standards, monitor Ward Clocks, and route high-density recyclables to vetted B2B collectors.`;
-          }
+        // Call real AI Advisory endpoint
+        fetch("/api/ai-advisor", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ward: "Ward 14 (Cyber Hub)",
+            category: "Air Quality (AQI)",
+            currentValue: get().currentIndex,
+            targetValue: 60,
+            initialValue: get().initialIndex,
+            unit: "INDEX",
+            context: text,
+          }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            // Format the structured 3-step plan into chat
+            let reply = "";
+            const tags: string[] = [];
 
-          const botMsg: CopilotMessage = {
-            id: `msg-${Date.now() + 1}`,
-            sender: "copilot",
-            text: reply,
-            timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-            tags,
-          };
+            if (data.summary && data.steps) {
+              reply = `📋 ${data.summary}\n\n`;
+              data.steps.forEach((step: { action: string; expected_impact: string; owner_dept: string }, i: number) => {
+                reply += `▸ STEP ${i + 1}: ${step.action}\n  ➤ Impact: ${step.expected_impact}\n  ➤ Owner: ${step.owner_dept}\n\n`;
+              });
+              reply += `Confidence: ${data.confidence || "HIGH"} | Source: ${data.source || "AI Advisory Engine"}`;
+              tags.push("AI ADVISORY", data.confidence || "HIGH", data.source === "gemini-2.0-flash-live" ? "GEMINI LIVE" : "TACTICAL ENGINE");
+            } else {
+              reply = data.error || "Directive processed. No structured plan available for this query.";
+              tags.push("TACTICAL COPILOT", "FALLBACK");
+            }
 
-          set((state) => ({
-            copilotMessages: [...state.copilotMessages, botMsg],
-          }));
-        }, 600);
+            // Remove thinking message and add real response
+            set((state) => ({
+              copilotMessages: [
+                ...state.copilotMessages.filter((m) => m.id !== thinkingMsg.id),
+                {
+                  id: `msg-${Date.now() + 1}`,
+                  sender: "copilot" as const,
+                  text: reply,
+                  timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                  tags,
+                },
+              ],
+            }));
+          })
+          .catch(() => {
+            // Network error fallback
+            set((state) => ({
+              copilotMessages: [
+                ...state.copilotMessages.filter((m) => m.id !== thinkingMsg.id),
+                {
+                  id: `msg-${Date.now() + 1}`,
+                  sender: "copilot" as const,
+                  text: `TACTICAL ASSESSMENT: Directive '${text}' processed locally. Recommendation: Maintain waste segregation standards, monitor Ward Clocks, and route high-density recyclables to vetted B2B collectors. AI Advisory Engine offline — using cached tactical directives.`,
+                  timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+                  tags: ["OFFLINE MODE", "CACHED DIRECTIVE"],
+                },
+              ],
+            }));
+          });
       },
 
       // ════════════════════════════════════════════════════════════

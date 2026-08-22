@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { usePlayerStore, calculateImprovementTier, type BadgeTier } from "@/store/usePlayerStore";
+import ShareImpactButton from "@/components/ShareImpactButton";
 
 export default function EcoChallengesView() {
   const { challenges, joinChallenge, initialIndex, currentIndex } = usePlayerStore();
@@ -257,23 +258,32 @@ export default function EcoChallengesView() {
                     <span className="text-gray-200">{chal.participantsCount} Units</span>
                   </div>
 
-                  <button
-                    type="button"
-                    disabled={chal.isJoined}
-                    onClick={() => joinChallenge(chal.id)}
-                    className="w-full py-2.5 rounded-lg text-xs font-black tracking-widest uppercase transition-all"
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      background: chal.isJoined
-                        ? "rgba(57, 255, 136, 0.15)"
-                        : "linear-gradient(135deg, rgba(255, 209, 102, 0.25), rgba(255, 209, 102, 0.05))",
-                      color: chal.isJoined ? "var(--sq-green)" : "var(--sq-gold)",
-                      border: chal.isJoined ? "1px solid var(--sq-green)" : "1px solid var(--sq-gold)",
-                      cursor: chal.isJoined ? "default" : "pointer",
-                    }}
-                  >
-                    {chal.isJoined ? "✓ ENLISTED IN SPRINT" : "ENLIST IN SPRINT"}
-                  </button>
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={chal.isJoined}
+                      onClick={() => joinChallenge(chal.id)}
+                      className="flex-1 py-2.5 rounded-lg text-xs font-black tracking-widest uppercase transition-all"
+                      style={{
+                        fontFamily: "var(--font-display)",
+                        background: chal.isJoined
+                          ? "rgba(57, 255, 136, 0.15)"
+                          : "linear-gradient(135deg, rgba(255, 209, 102, 0.25), rgba(255, 209, 102, 0.05))",
+                        color: chal.isJoined ? "var(--sq-green)" : "var(--sq-gold)",
+                        border: chal.isJoined ? "1px solid var(--sq-green)" : "1px solid var(--sq-gold)",
+                        cursor: chal.isJoined ? "default" : "pointer",
+                      }}
+                    >
+                      {chal.isJoined ? "✓ ENLISTED" : "ENLIST IN SPRINT"}
+                    </button>
+                    <ShareImpactButton
+                      type="challenge"
+                      id={chal.id}
+                      title={chal.title}
+                      stat={`${pct}% Reduction • ${chal.rewardAmount}`}
+                      ward="Sector 14 Grid"
+                    />
+                  </div>
                 </div>
               </div>
             );

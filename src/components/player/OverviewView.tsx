@@ -3,6 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePlayerStore, calculateImprovementTier } from "@/store/usePlayerStore";
+import ShareImpactButton from "@/components/ShareImpactButton";
 
 export default function OverviewView() {
   const {
@@ -56,43 +57,55 @@ export default function OverviewView() {
           </div>
 
           {/* Quick Metrics */}
-          <div className="grid grid-cols-3 gap-3 md:gap-4 border-t md:border-t-0 md:border-l pt-4 md:pt-0 md:pl-6 border-emerald-950">
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-gray-400">Total Score</div>
-              <div
-                className="text-2xl font-black"
-                style={{ fontFamily: "var(--font-display)", color: "var(--sq-green)" }}
-              >
-                {points.toLocaleString()} <span className="text-xs font-normal text-gray-400">PTS</span>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 border-t md:border-t-0 md:border-l pt-4 md:pt-0 md:pl-6 border-emerald-950">
+            <div className="grid grid-cols-3 gap-3 md:gap-4">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-gray-400">Total Score</div>
+                <div
+                  className="text-2xl font-black"
+                  style={{ fontFamily: "var(--font-display)", color: "var(--sq-green)" }}
+                >
+                  {points.toLocaleString()} <span className="text-xs font-normal text-gray-400">PTS</span>
+                </div>
+              </div>
+
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-gray-400">Badge Tier</div>
+                <div
+                  className="text-2xl font-black uppercase"
+                  style={{
+                    fontFamily: "var(--font-display)",
+                    color:
+                      badgeTier === "gold"
+                        ? "var(--sq-gold)"
+                        : badgeTier === "silver"
+                        ? "#c0c0c0"
+                        : "var(--sq-green)",
+                  }}
+                >
+                  {badgeTier}
+                </div>
+              </div>
+
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-gray-400">Suppression</div>
+                <div
+                  className="text-2xl font-black"
+                  style={{ fontFamily: "var(--font-display)", color: "var(--sq-gold)" }}
+                >
+                  {pct}%
+                </div>
               </div>
             </div>
 
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-gray-400">Badge Tier</div>
-              <div
-                className="text-2xl font-black uppercase"
-                style={{
-                  fontFamily: "var(--font-display)",
-                  color:
-                    badgeTier === "gold"
-                      ? "var(--sq-gold)"
-                      : badgeTier === "silver"
-                      ? "#c0c0c0"
-                      : "var(--sq-green)",
-                }}
-              >
-                {badgeTier}
-              </div>
-            </div>
-
-            <div>
-              <div className="text-[10px] uppercase tracking-wider text-gray-400">Suppression</div>
-              <div
-                className="text-2xl font-black"
-                style={{ fontFamily: "var(--font-display)", color: "var(--sq-gold)" }}
-              >
-                {pct}%
-              </div>
+            <div className="pt-2 sm:pt-0 shrink-0">
+              <ShareImpactButton
+                type="badge"
+                id="user-badge"
+                title={`${badgeTier.toUpperCase()} BADGE`}
+                stat={`${points} PTS • ${pct}% Index Suppression`}
+                ward="Ward 14 • Delhi NCR"
+              />
             </div>
           </div>
         </div>

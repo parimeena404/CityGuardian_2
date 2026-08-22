@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { usePlayerStore, type CivicCategory, type CivicStatus } from "@/store/usePlayerStore";
+import ShareImpactButton from "@/components/ShareImpactButton";
 
 const CATEGORIES: { id: CivicCategory; label: string; department: string; sla: number }[] = [
   { id: "waste_burning", label: "Illegal Open Waste Burning", department: "CPCB Air Enforcement Division", sla: 24 },
@@ -280,34 +281,44 @@ export default function CivicIssueTrackerView() {
                       )}
                     </div>
 
-                    {!isResolved && (
-                      <div>
-                        {resolvingTicketId === ticket.id ? (
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="url"
-                              value={afterPhotoUrl}
-                              onChange={(e) => setAfterPhotoUrl(e.target.value)}
-                              placeholder="After Photo URL"
-                              className="bg-black/80 border border-emerald-500 rounded px-2.5 py-1 text-xs text-white font-mono"
-                            />
+                    <div className="flex items-center gap-2">
+                      <ShareImpactButton
+                        type="civic-ticket"
+                        id={ticket.id}
+                        title={ticket.title}
+                        stat={`Status: ${ticket.status.toUpperCase()} • ${ticket.department}`}
+                        ward={ticket.locationName}
+                        compact
+                      />
+                      {!isResolved && (
+                        <div>
+                          {resolvingTicketId === ticket.id ? (
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="url"
+                                value={afterPhotoUrl}
+                                onChange={(e) => setAfterPhotoUrl(e.target.value)}
+                                placeholder="After Photo URL"
+                                className="bg-black/80 border border-emerald-500 rounded px-2.5 py-1 text-xs text-white font-mono"
+                              />
+                              <button
+                                onClick={() => handleResolve(ticket.id)}
+                                className="px-3 py-1 rounded bg-emerald-500 text-black text-xs font-black uppercase font-mono"
+                              >
+                                Seal Resolution // +50 PTS
+                              </button>
+                            </div>
+                          ) : (
                             <button
-                              onClick={() => handleResolve(ticket.id)}
-                              className="px-3 py-1 rounded bg-emerald-500 text-black text-xs font-black uppercase font-mono"
+                              onClick={() => setResolvingTicketId(ticket.id)}
+                              className="px-3 py-1.5 rounded-lg bg-pink-500/20 text-pink-400 border border-pink-500/40 text-xs font-mono font-bold hover:scale-105 transition-all"
                             >
-                              Seal Resolution // +50 PTS
+                              Close Ticket with Evidence →
                             </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setResolvingTicketId(ticket.id)}
-                            className="px-3 py-1.5 rounded-lg bg-pink-500/20 text-pink-400 border border-pink-500/40 text-xs font-mono font-bold hover:scale-105 transition-all"
-                          >
-                            Close Ticket with Evidence →
-                          </button>
-                        )}
-                      </div>
-                    )}
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
               );

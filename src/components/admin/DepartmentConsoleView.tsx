@@ -15,12 +15,27 @@ interface DepartmentScorecard {
   badgeTier: BadgeTier;
   actionTicketsResolved: number;
   slaCompliance: number;
+  category: string;
+  unit: string;
   subClocks: {
     title: string;
     ward: string;
     reduction: number;
     tier: BadgeTier;
   }[];
+}
+
+interface AIStep {
+  action: string;
+  expected_impact: string;
+  owner_dept: string;
+}
+
+interface AIPlan {
+  summary: string;
+  steps: AIStep[];
+  confidence: string;
+  source: string;
 }
 
 const DEPARTMENTS: DepartmentScorecard[] = [
@@ -36,6 +51,8 @@ const DEPARTMENTS: DepartmentScorecard[] = [
     badgeTier: "gold",
     actionTicketsResolved: 84,
     slaCompliance: 96.4,
+    category: "Air Quality (AQI)",
+    unit: "AQI",
     subClocks: [
       { title: "Ward 14 AQI Suppression", ward: "Ward 14", reduction: 35.4, tier: "gold" },
       { title: "Ward 22 Industrial Emission Clock", ward: "Ward 22", reduction: 31.7, tier: "gold" },
@@ -54,6 +71,8 @@ const DEPARTMENTS: DepartmentScorecard[] = [
     badgeTier: "silver",
     actionTicketsResolved: 42,
     slaCompliance: 91.2,
+    category: "Water Quality (BOD)",
+    unit: "mg/L",
     subClocks: [
       { title: "Riverfront BOD Interception Clock", ward: "Ward 18", reduction: 42.1, tier: "gold" },
       { title: "Old Mandi Effluent Treatment Clock", ward: "Ward 09", reduction: 18.4, tier: "bronze" },
@@ -71,6 +90,8 @@ const DEPARTMENTS: DepartmentScorecard[] = [
     badgeTier: "silver",
     actionTicketsResolved: 128,
     slaCompliance: 94.8,
+    category: "Sewage & Waste Index",
+    unit: "INDEX",
     subClocks: [
       { title: "Ward 14 PET Segregation Clock", ward: "Ward 14", reduction: 32.0, tier: "gold" },
       { title: "Commercial Food Rescue Clock", ward: "Ward 18", reduction: 24.5, tier: "silver" },
@@ -89,6 +110,8 @@ const DEPARTMENTS: DepartmentScorecard[] = [
     badgeTier: "bronze",
     actionTicketsResolved: 68,
     slaCompliance: 88.5,
+    category: "Dust & Urban Heat",
+    unit: "PM10",
     subClocks: [
       { title: "Sector 29 Road Dust Sprinkler Clock", ward: "Ward 14", reduction: 18.2, tier: "bronze" },
       { title: "Ring Road Pothole Closure SLA Clock", ward: "Ward 11", reduction: 12.5, tier: "bronze" },
@@ -98,9 +121,36 @@ const DEPARTMENTS: DepartmentScorecard[] = [
 
 export default function DepartmentConsoleView() {
   const [expandedDeptId, setExpandedDeptId] = useState<string | null>("dept-1");
+  const [aiPlans, setAiPlans] = useState<Record<string, AIPlan>>({});
+  const [aiLoading, setAiLoading] = useState<Record<string, boolean>>({});
 
   const toggleExpand = (id: string) => {
     setExpandedDeptId((prev) => (prev === id ? null : id));
+  };
+
+  const fetchAIPlan = async (dept: DepartmentScorecard) => {
+    setAiLoading((prev) => ({ ...prev, [dept.id]: true }));
+    try {
+      const res = await fetch("/api/ai-advisor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ward: dept.subClocks[0]?.ward || "Ward 14",
+          category: dept.category,
+          currentValue: dept.currentAvgIndex,
+          targetValue: Math.round(dept.initialAvgIndex * 0.5),
+          initialValue: dept.initialAvgIndex,
+          unit: dept.unit,
+        }),
+      });
+      const data = await res.json();
+      if (data.summary && data.steps) {
+        setAiPlans((prev) => ({ ...prev, [dept.id]: data }));
+      }
+    } catch {
+      // Silently fail
+    }
+    setAiLoading((prev) => ({ ...prev, [dept.id]: false }));
   };
 
   return (
@@ -153,6 +203,8 @@ export default function DepartmentConsoleView() {
         <div className="divide-y divide-gray-900">
           {DEPARTMENTS.map((dept) => {
             const isExpanded = expandedDeptId === dept.id;
+            const plan = aiPlans[dept.id];
+            const loading = aiLoading[dept.id];
 
             return (
               <div key={dept.id} className="transition-all">
@@ -229,9 +281,9 @@ export default function DepartmentConsoleView() {
                   </div>
                 </div>
 
-                {/* Expanded Details: Assigned Ward Clocks Drilldown */}
+                {/* Expanded Details: Assigned Ward Clocks Drilldown + AI Recommendation */}
                 {isExpanded && (
-                  <div className="px-6 py-4 bg-black/90 border-t border-b border-pink-950/40 space-y-3">
+                  <div className="px-6 py-4 bg-black/90 border-t border-b border-pink-950/40 space-y-4">
                     <div className="text-[10px] font-mono uppercase tracking-wider text-pink-400 font-bold">
                       ASSIGNED DIGITAL CLOCKS // AUDIT TELEMETRY BREAKDOWN:
                     </div>
@@ -257,6 +309,78 @@ export default function DepartmentConsoleView() {
                           </div>
                         </div>
                       ))}
+                    </div>
+
+                    {/* AI Recommendation Section */}
+                    <div className="mt-3 pt-3 border-t border-gray-800">
+                      {!plan && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            fetchAIPlan(dept);
+                          }}
+                          disabled={loading}
+                          className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-[11px] font-black tracking-widest uppercase font-mono transition-all hover:scale-[1.02] disabled:opacity-50"
+                          style={{
+                            background: "linear-gradient(135deg, rgba(57, 255, 136, 0.15), rgba(0, 119, 182, 0.1))",
+                            color: "var(--sq-green)",
+                            border: "1px solid rgba(57, 255, 136, 0.35)",
+                          }}
+                        >
+                          <span className={loading ? "animate-spin" : ""}>◉</span>
+                          {loading ? "QUERYING AI ADVISORY ENGINE..." : "GET AI RECOMMENDATION"}
+                        </button>
+                      )}
+
+                      {plan && (
+                        <div className="space-y-3 animate-in fade-in">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black tracking-[3px] uppercase px-2 py-0.5 rounded font-mono"
+                              style={{
+                                background: "rgba(57, 255, 136, 0.15)",
+                                color: "var(--sq-green)",
+                                border: "1px solid rgba(57, 255, 136, 0.3)",
+                              }}
+                            >
+                              ◉ AI ADVISORY ENGINE — {plan.source === "gemini-2.0-flash-live" ? "GEMINI LIVE" : "TACTICAL ENGINE"}
+                            </span>
+                            <span className="text-[9px] text-gray-500 font-mono">
+                              Confidence: {plan.confidence}
+                            </span>
+                          </div>
+
+                          <p className="text-xs text-gray-300 font-mono leading-relaxed">
+                            {plan.summary}
+                          </p>
+
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            {plan.steps.map((step, i) => (
+                              <div
+                                key={i}
+                                className="p-3 rounded-xl border space-y-2"
+                                style={{
+                                  background: "rgba(57, 255, 136, 0.04)",
+                                  borderColor: "rgba(57, 255, 136, 0.2)",
+                                }}
+                              >
+                                <div className="text-[10px] font-black text-emerald-400 font-mono">
+                                  STEP {i + 1}
+                                </div>
+                                <div className="text-xs text-white font-mono leading-relaxed">
+                                  {step.action}
+                                </div>
+                                <div className="text-[10px] text-emerald-300 font-mono">
+                                  ➤ {step.expected_impact}
+                                </div>
+                                <div className="text-[9px] text-gray-500 font-mono">
+                                  Owner: {step.owner_dept}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

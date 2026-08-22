@@ -175,28 +175,55 @@ export default function LandingPage() {
           </div>
         </div>
 
-        {/* Enter button */}
-        <div className="text-center animate-fade-in-up-delay-3">
-          <Link
-            href="/player/overview"
-            className="inline-flex items-center gap-3 px-8 py-4 rounded-xl text-sm font-bold tracking-[3px] uppercase no-underline transition-all hover:scale-105"
-            style={{
-              fontFamily: "var(--font-display)",
-              background: "linear-gradient(135deg, rgba(57, 255, 136, 0.15), rgba(57, 255, 136, 0.05))",
-              color: "var(--sq-green)",
-              border: "1px solid rgba(57, 255, 136, 0.3)",
-              boxShadow: "0 0 30px rgba(57, 255, 136, 0.1)",
-            }}
-          >
-            <span>ENTER THE ARENA</span>
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M3 8h10M9 4l4 4-4 4" />
-            </svg>
-          </Link>
+        {/* Dual Enter Buttons for Judges & Citizens */}
+        <div className="space-y-4 animate-fade-in-up-delay-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Link
+              href="/player/overview"
+              onClick={() => {
+                useAppStore.getState().setRole("player");
+              }}
+              className="flex items-center justify-center gap-3 px-6 py-4 rounded-xl text-xs font-black tracking-[3px] uppercase no-underline transition-all hover:scale-105"
+              style={{
+                fontFamily: "var(--font-display)",
+                background: "linear-gradient(135deg, rgba(57, 255, 136, 0.2), rgba(57, 255, 136, 0.05))",
+                color: "var(--sq-green)",
+                border: "1px solid rgba(57, 255, 136, 0.4)",
+                boxShadow: "0 0 30px rgba(57, 255, 136, 0.15)",
+              }}
+            >
+              <span>● ENTER AS PLAYER</span>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M3 8h10M9 4l4 4-4 4" />
+              </svg>
+            </Link>
 
-          <p className="text-[10px] tracking-widest uppercase mt-4" style={{ color: "var(--sq-text-muted)" }}>
-            ○ △ □ — Every action counts. Every point matters. — □ △ ○
-          </p>
+            <Link
+              href="/admin/control-center"
+              onClick={() => {
+                useAppStore.getState().setRole("frontman");
+              }}
+              className="flex items-center justify-center gap-3 px-6 py-4 rounded-xl text-xs font-black tracking-[3px] uppercase no-underline transition-all hover:scale-105"
+              style={{
+                fontFamily: "var(--font-display)",
+                background: "linear-gradient(135deg, rgba(255, 46, 109, 0.25), rgba(255, 46, 109, 0.05))",
+                color: "var(--sq-pink)",
+                border: "1px solid rgba(255, 46, 109, 0.4)",
+                boxShadow: "0 0 30px rgba(255, 46, 109, 0.15)",
+              }}
+            >
+              <span>▲ ENTER AS FRONT MAN</span>
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M3 8h10M9 4l4 4-4 4" />
+              </svg>
+            </Link>
+          </div>
+
+          <div className="text-center">
+            <p className="text-[10px] tracking-widest uppercase mt-4" style={{ color: "var(--sq-text-muted)" }}>
+              ○ △ □ — Every action counts. Every point matters. — □ △ ○
+            </p>
+          </div>
         </div>
       </div>
     </div>
