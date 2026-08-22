@@ -1,9 +1,11 @@
 # ○ △ □ CITY GUARDIAN — CIVIC SURVIVAL PLATFORM
 
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel%20Deployment-39ff88?style=for-the-badge&logo=vercel)](https://city-guardian-2-affg.vercel.app/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-ffd166?style=for-the-badge&logo=open-source-initiative)](https://github.com/parimeena404/CityGuardian_2/blob/main/LICENSE)
 [![GitHub Repository](https://img.shields.io/badge/GitHub-CityGuardian__2-ff2e6d?style=for-the-badge&logo=github)](https://github.com/parimeena404/CityGuardian_2.git)
 
 > 🌐 **Live Production URL**: [https://city-guardian-2-affg.vercel.app/](https://city-guardian-2-affg.vercel.app/)
+> 📄 **License**: [MIT License](https://github.com/parimeena404/CityGuardian_2/blob/main/LICENSE)
 
 > **"Gamified civic survival where measured environmental outcomes drive real municipal accountability."**
 
@@ -90,3 +92,13 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 - **Styling**: Tailwind CSS v4 with custom CRT scanline overlays and HSL neon palette.
 - **Theme**: Squid Game-inspired Pink (`#ff2e6d`), Emerald Green (`#39ff88`), Gold (`#ffd166`), and Deep Obsidian (`#0a0a0a`).
 - **Data Privacy**: No municipal account impersonation; all public escalation flows use client-side share intents.
+
+---
+
+## 📄 LICENSE
+
+This project is licensed under the **MIT License** — see the [LICENSE](https://github.com/parimeena404/CityGuardian_2/blob/main/LICENSE) file for details.
+
+- **Live Production Deployment**: [https://city-guardian-2-affg.vercel.app/](https://city-guardian-2-affg.vercel.app/)
+- **Repository**: [https://github.com/parimeena404/CityGuardian_2.git](https://github.com/parimeena404/CityGuardian_2.git)
+
