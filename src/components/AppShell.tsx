@@ -4,6 +4,7 @@ import React, { useEffect } from "react";
 import { useAppStore } from "@/store/useAppStore";
 import Sidebar from "@/components/Sidebar";
 import ShapeMotifs from "@/components/ShapeMotifs";
+import SquidToast from "@/components/SquidToast";
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const { role, sidebarOpen, setSidebarOpen } = useAppStore();
@@ -16,6 +17,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="scanline-overlay grid-bg min-h-screen">
       <ShapeMotifs />
+      <SquidToast />
 
       {/* Mobile overlay */}
       <div
@@ -32,7 +34,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           borderRight: "1px solid var(--sq-accent-border)",
           transform: sidebarOpen ? "translateX(0)" : undefined,
         }}
-        // On desktop: always visible. On mobile: slide in/out
       >
         <div className="hidden lg:block h-full">
           <Sidebar />

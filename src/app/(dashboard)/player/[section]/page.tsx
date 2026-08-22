@@ -2,9 +2,24 @@
 
 import React from "react";
 import { useParams } from "next/navigation";
-import PlaceholderPage from "@/components/PlaceholderPage";
-import { getModuleTitle, getSectionName, getValidSlugs } from "@/lib/navigation";
 import Link from "next/link";
+import { getValidSlugs } from "@/lib/navigation";
+
+// Real feature components for Player Mode
+import OverviewView from "@/components/player/OverviewView";
+import ReportWasteView from "@/components/player/ReportWasteView";
+import ContributionsView from "@/components/player/ContributionsView";
+import EcoAiHandlerView from "@/components/player/EcoAiHandlerView";
+import EcoChallengesView from "@/components/player/EcoChallengesView";
+import LeaderboardView from "@/components/player/LeaderboardView";
+import RewardsVaultView from "@/components/player/RewardsVaultView";
+import BuildFromWasteView from "@/components/player/BuildFromWasteView";
+import CommunityProjectsView from "@/components/player/CommunityProjectsView";
+import AiMatchingMatrixView from "@/components/player/AiMatchingMatrixView";
+import IndustryDemandView from "@/components/player/IndustryDemandView";
+import EcoMarketView from "@/components/player/EcoMarketView";
+import EcoFoodRescueView from "@/components/player/EcoFoodRescueView";
+import GovernmentConnectView from "@/components/player/GovernmentConnectView";
 
 export default function PlayerSectionPage() {
   const params = useParams();
@@ -21,10 +36,10 @@ export default function PlayerSectionPage() {
             className="text-xl font-bold tracking-wider mb-2"
             style={{ fontFamily: "var(--font-display)", color: "var(--sq-pink)" }}
           >
-            ROUTE NOT FOUND
+            SECTOR NOT FOUND
           </h1>
           <p className="text-sm mb-4" style={{ color: "var(--sq-text-muted)" }}>
-            This sector does not exist in the arena.
+            This sector does not exist in the arena grid.
           </p>
           <Link
             href="/player/overview"
@@ -43,12 +58,43 @@ export default function PlayerSectionPage() {
     );
   }
 
-  return (
-    <PlaceholderPage
-      title={getModuleTitle(section, "player")}
-      section={getSectionName(section, "player")}
-      slug={section}
-      mode="player"
-    />
-  );
+  // Render appropriate view based on route slug
+  switch (section) {
+    case "overview":
+      return <OverviewView />;
+    case "report-waste":
+      return <ReportWasteView />;
+    case "my-contributions":
+      return <ContributionsView />;
+    case "eco-ai-handler":
+      return <EcoAiHandlerView />;
+    case "ecomarket":
+      return <EcoMarketView />;
+    case "industry-demand":
+      return <IndustryDemandView />;
+    case "ai-matching-matrix":
+      return <AiMatchingMatrixView />;
+    case "build-from-waste":
+      return <BuildFromWasteView />;
+    case "community-projects":
+      return <CommunityProjectsView />;
+    case "eco-challenges":
+      return <EcoChallengesView />;
+    case "leaderboard":
+      return <LeaderboardView />;
+    case "rewards-vault":
+      return <RewardsVaultView />;
+    case "ecofood-marketplace":
+      return <EcoFoodRescueView section="ecofood-marketplace" />;
+    case "restaurant-partner":
+      return <EcoFoodRescueView section="restaurant-partner" />;
+    case "ngo-food-rescue":
+      return <EcoFoodRescueView section="ngo-food-rescue" />;
+    case "government-connect":
+      return <GovernmentConnectView section="government-connect" />;
+    case "civic-issue-tracker":
+      return <GovernmentConnectView section="civic-issue-tracker" />;
+    default:
+      return <OverviewView />;
+  }
 }
