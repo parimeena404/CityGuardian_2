@@ -2,9 +2,18 @@
 
 import React from "react";
 import { useParams } from "next/navigation";
-import PlaceholderPage from "@/components/PlaceholderPage";
-import { getModuleTitle, getSectionName, getValidSlugs } from "@/lib/navigation";
 import Link from "next/link";
+import { getValidSlugs } from "@/lib/navigation";
+
+// Real feature components for Front Man / Admin Mode
+import ControlCenterView from "@/components/admin/ControlCenterView";
+import DepartmentConsoleView from "@/components/admin/DepartmentConsoleView";
+import WardClocksView from "@/components/admin/WardClocksView";
+import ImpactMatrixView from "@/components/admin/ImpactMatrixView";
+import ComplianceEfirLogView from "@/components/admin/ComplianceEfirLogView";
+import FundingCsrTrackerView from "@/components/admin/FundingCsrTrackerView";
+import CityIntelligenceViews from "@/components/admin/CityIntelligenceViews";
+import PeopleViews from "@/components/admin/PeopleViews";
 
 export default function AdminSectionPage() {
   const params = useParams();
@@ -21,10 +30,10 @@ export default function AdminSectionPage() {
             className="text-xl font-bold tracking-wider mb-2"
             style={{ fontFamily: "var(--font-display)", color: "var(--sq-pink)" }}
           >
-            ROUTE NOT FOUND
+            COMMAND SECTOR NOT FOUND
           </h1>
           <p className="text-sm mb-4" style={{ color: "var(--sq-text-muted)" }}>
-            This sector does not exist in the command center.
+            This sector does not exist in the Front Man authority console.
           </p>
           <Link
             href="/admin/control-center"
@@ -43,12 +52,33 @@ export default function AdminSectionPage() {
     );
   }
 
-  return (
-    <PlaceholderPage
-      title={getModuleTitle(section, "frontman")}
-      section={getSectionName(section, "frontman")}
-      slug={section}
-      mode="frontman"
-    />
-  );
+  // Render designated Front Man views based on route slug
+  switch (section) {
+    case "control-center":
+      return <ControlCenterView />;
+    case "department-console":
+      return <DepartmentConsoleView />;
+    case "ward-clocks":
+      return <WardClocksView />;
+    case "city-monitor":
+      return <CityIntelligenceViews section="city-monitor" />;
+    case "energy-grid":
+      return <CityIntelligenceViews section="energy-grid" />;
+    case "water-monitor":
+      return <CityIntelligenceViews section="water-monitor" />;
+    case "waste-analytics":
+      return <CityIntelligenceViews section="waste-analytics" />;
+    case "impact-matrix":
+      return <ImpactMatrixView />;
+    case "compliance-efir-log":
+      return <ComplianceEfirLogView />;
+    case "funding-csr-tracker":
+      return <FundingCsrTrackerView />;
+    case "citizen-reports-queue":
+      return <PeopleViews section="citizen-reports-queue" />;
+    case "restaurant-ngo-partners":
+      return <PeopleViews section="restaurant-ngo-partners" />;
+    default:
+      return <ControlCenterView />;
+  }
 }
